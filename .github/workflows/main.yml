@@ -54,7 +54,7 @@ jobs:
         run: |
           echo "[4/5] Getting first available codespace..."
           echo "Authenticating for codespace operations..."
-          echo "$GH_TOKEN" | gh auth login --with-token --scopes codespace
+          echo "$GH_TOKEN" | gh auth login --with-token
           echo "Listing codespaces..."
           CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name' 2>/dev/null || echo "")
           if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ] && [ "$CODESPACE_NAME" != "" ]; then
