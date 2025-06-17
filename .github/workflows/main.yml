@@ -49,13 +49,20 @@ jobs:
       
       # Step 4: Get and Check First Codespace
       - name: Check First Codespace
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "[4/5] Getting first available codespace..."
-          CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name')
-          if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ]; then
+          echo "Authenticating for codespace operations..."
+          echo "$GH_TOKEN" | gh auth login --with-token --scopes codespace
+          echo "Listing codespaces..."
+          CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name' 2>/dev/null || echo "")
+          if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ] && [ "$CODESPACE_NAME" != "" ]; then
             echo "Found codespace: $CODESPACE_NAME"
             gh cs view -c "$CODESPACE_NAME"
           else
-            echo "No codespaces found"
+            echo "No codespaces found or accessible"
+            echo "Available codespaces:"
+            gh cs list || echo "Failed to list codespaces"
             exit 1
           fi
