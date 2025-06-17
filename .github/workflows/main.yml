@@ -72,7 +72,7 @@ jobs:
             echo "Connecting to codespace via SSH and running commands..."
             gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h"
             echo "Sleeping for 60 seconds..."
-            sleep 120
+            sleep 180
             echo "Sleep completed, workflow finished"
           else
             echo "No codespaces found or accessible"
