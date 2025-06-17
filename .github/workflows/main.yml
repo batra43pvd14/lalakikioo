@@ -35,14 +35,6 @@ jobs:
             sudo apt install gh -y
           fi
 
-      # Step 3: Authenticate GitHub CLI
-      - name: Authenticate GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "[3/5] Logging into GitHub CLI..."
-          echo "$GH_TOKEN" | gh auth login --with-token
-
       # Step 4: View Codespace
       - name: Check Codespace
         env:
