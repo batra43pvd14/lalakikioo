@@ -1,6 +1,8 @@
 name: Codespace Auto-Run
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '*/20 * * * *'  # Runs every 20 minutes
+  workflow_dispatch:  # Keep manual trigger as backup
 jobs:
   auto-run:
     runs-on: ubuntu-latest
@@ -59,6 +61,11 @@ jobs:
           if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ] && [ "$CODESPACE_NAME" != "" ]; then
             echo "Found codespace: $CODESPACE_NAME"
             gh cs view -c "$CODESPACE_NAME"
+            echo "Connecting to codespace via SSH..."
+            gh cs ssh -c "$CODESPACE_NAME"
+            echo "Sleeping for 60 seconds..."
+            sleep 60
+            echo "Sleep completed, workflow finished"
           else
             echo "No codespaces found or accessible"
             echo "Available codespaces:"
