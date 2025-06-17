@@ -39,7 +39,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "[3/5] Logging into GitHub CLI..."
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Error: GH_TOKEN is not set or empty"
+            exit 1
+          fi
+          echo "Token length: ${#GH_TOKEN}"
           echo "$GH_TOKEN" | gh auth login --with-token
+          echo "Authentication successful"
+          gh auth status
       
       # Step 4: Get and Check First Codespace
       - name: Check First Codespace
