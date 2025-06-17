@@ -41,4 +41,5 @@ jobs:
           CODESPACE_NAME: "turbo-capybara-r4xr7pv6xqgp2x94v-8006"
         run: |
           echo "[4/5] Checking codespace..."
+          gh auth login -s codespace
           gh cs view -c "$CODESPACE_NAME"
