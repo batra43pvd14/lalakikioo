@@ -1,0 +1,52 @@
+name: Codespace Auto-Run
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auto-run:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 0: Setup environment and display start time
+      - name: Display Start Time
+        run: |
+          echo "=== GitHub Codespace Auto-Run Script ==="
+          echo "Start time: $(date)"
+
+      # Step 1: Install required tools
+      - name: Install Required Packages
+        run: |
+          echo "[1/5] Installing required packages..."
+          sudo apt-get update -y
+          sudo apt-get install -y stress curl git jq
+
+      # Step 2: Install GitHub CLI if not present
+      - name: Install GitHub CLI
+        run: |
+          echo "[2/5] Installing GitHub CLI..."
+          if ! command -v gh &> /dev/null; then
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+              sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
+              https://cli.github.com/packages stable main" | \
+              sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt update -y
+            sudo apt install gh -y
+          fi
+
+      # Step 3: Authenticate GitHub CLI
+      - name: Authenticate GitHub CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "[3/5] Logging into GitHub CLI..."
+          echo "$GITHUB_TOKEN" | gh auth login --with-token
+
+      # Step 4: View Codespace
+      - name: Check Codespace
+        env:
+          CODESPACE_NAME: "turbo-capybara-r4xr7pv6xqgp2x94v-8006"
+        run: |
+          echo "[4/5] Checking codespace..."
+          gh cs view -c "$CODESPACE_NAME"
