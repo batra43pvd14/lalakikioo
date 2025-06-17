@@ -1,25 +1,32 @@
 name: Codespace Auto-Run
+
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Runs every 5 minutes
-  workflow_dispatch:  # Keep manual trigger as backup
+    - cron: '*/5 * * * *'  # Run every 5 minutes
+  workflow_dispatch:        # Allow manual trigger
+  push:
+    branches:
+      - main
+      - develop
+
 jobs:
   auto-run:
     runs-on: ubuntu-latest
     steps:
+
       # Step 0: Setup environment and display start time
       - name: Display Start Time
         run: |
           echo "=== GitHub Codespace Auto-Run Script ==="
           echo "Start time: $(date)"
-      
-      # Step 1: Install required tools
+
+      # Step 1: Install required packages
       - name: Install Required Packages
         run: |
           echo "[1/5] Installing required packages..."
           sudo apt-get update -y
           sudo apt-get install -y stress curl git jq
-      
+
       # Step 2: Install GitHub CLI if not present
       - name: Install GitHub CLI
         run: |
@@ -29,12 +36,14 @@ jobs:
               sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
             sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
             echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
-              https://cli.github.com/packages stable main" | \
+https://cli.github.com/packages stable main" | \
               sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt update -y
-            sudo apt install gh -y
+            sudo apt-get update -y
+            sudo apt-get install gh -y
+          else
+            echo "GitHub CLI is already installed."
           fi
-      
+
       # Step 3: Verify GitHub CLI Authentication
       - name: Verify GitHub CLI Authentication
         env:
@@ -46,9 +55,9 @@ jobs:
             exit 1
           fi
           echo "Token length: ${#GH_TOKEN}"
-          echo "Testing authentication with gh auth status..."
+          echo "Testing authentication with 'gh auth status'..."
           gh auth status
-      
+
       # Step 4: Get and Check First Codespace
       - name: Check First Codespace
         env:
@@ -58,7 +67,8 @@ jobs:
           echo "Using GH_TOKEN for authentication..."
           echo "Listing codespaces..."
           CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name' 2>/dev/null || echo "")
-          if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ] && [ "$CODESPACE_NAME" != "" ]; then
+          
+          if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ]; then
             echo "Found codespace: $CODESPACE_NAME"
             gh cs view -c "$CODESPACE_NAME"
             echo "Connecting to codespace via SSH and running commands..."
@@ -67,7 +77,7 @@ jobs:
             sleep 60
             echo "Sleep completed, workflow finished"
           else
-            echo "No codespaces found or accessible"
+            echo "No codespaces found or accessible."
             echo "Available codespaces:"
             gh cs list || echo "Failed to list codespaces"
             exit 1
