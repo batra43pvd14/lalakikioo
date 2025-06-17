@@ -1,8 +1,6 @@
 name: Codespace Auto-Run
-
 on:
   workflow_dispatch:
-
 jobs:
   auto-run:
     runs-on: ubuntu-latest
@@ -12,14 +10,14 @@ jobs:
         run: |
           echo "=== GitHub Codespace Auto-Run Script ==="
           echo "Start time: $(date)"
-
+      
       # Step 1: Install required tools
       - name: Install Required Packages
         run: |
           echo "[1/5] Installing required packages..."
           sudo apt-get update -y
           sudo apt-get install -y stress curl git jq
-
+      
       # Step 2: Install GitHub CLI if not present
       - name: Install GitHub CLI
         run: |
@@ -34,12 +32,24 @@ jobs:
             sudo apt update -y
             sudo apt install gh -y
           fi
-
-      # Step 4: View Codespace
-      - name: Check Codespace
+      
+      # Step 3: Authenticate GitHub CLI
+      - name: Authenticate GitHub CLI
         env:
-          CODESPACE_NAME: "turbo-capybara-r4xr7pv6xqgp2x94v-8006"
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "[4/5] Checking codespace..."
-          gh auth login -s codespace
-          gh cs view -c "$CODESPACE_NAME"
+          echo "[3/5] Logging into GitHub CLI..."
+          echo "$GH_TOKEN" | gh auth login --with-token
+      
+      # Step 4: Get and Check First Codespace
+      - name: Check First Codespace
+        run: |
+          echo "[4/5] Getting first available codespace..."
+          CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name')
+          if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ]; then
+            echo "Found codespace: $CODESPACE_NAME"
+            gh cs view -c "$CODESPACE_NAME"
+          else
+            echo "No codespaces found"
+            exit 1
+          fi
