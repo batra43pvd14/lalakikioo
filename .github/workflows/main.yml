@@ -33,19 +33,18 @@ jobs:
             sudo apt install gh -y
           fi
       
-      # Step 3: Authenticate GitHub CLI
-      - name: Authenticate GitHub CLI
+      # Step 3: Verify GitHub CLI Authentication
+      - name: Verify GitHub CLI Authentication
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "[3/5] Logging into GitHub CLI..."
+          echo "[3/5] Verifying GitHub CLI authentication..."
           if [ -z "$GH_TOKEN" ]; then
             echo "Error: GH_TOKEN is not set or empty"
             exit 1
           fi
           echo "Token length: ${#GH_TOKEN}"
-          echo "$GH_TOKEN" | gh auth login --with-token
-          echo "Authentication successful"
+          echo "Testing authentication with gh auth status..."
           gh auth status
       
       # Step 4: Get and Check First Codespace
