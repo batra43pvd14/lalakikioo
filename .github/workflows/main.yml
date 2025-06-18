@@ -24,14 +24,14 @@ jobs:
       # Step 1: Install required tools
       - name: Install Required Packages
         run: |
-          echo "[1/5] Installing required packages..."
+          echo "[1/6] Installing required packages..."
           sudo apt-get update -y
           sudo apt-get install -y stress curl git jq
       
       # Step 2: Install GitHub CLI if not present
       - name: Install GitHub CLI
         run: |
-          echo "[2/5] Installing GitHub CLI..."
+          echo "[2/6] Installing GitHub CLI..."
           if ! command -v gh &> /dev/null; then
             curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
               sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
@@ -43,12 +43,43 @@ jobs:
             sudo apt install gh -y
           fi
       
-      # Step 3: Verify GitHub CLI Authentication
+      # Step 3: Get ngrok endpoint URL
+      - name: Get ngrok Endpoint URL
+        env:
+          NGROK_API_TOKEN: ${{ secrets.NGROK_API_TOKEN }}
+        run: |
+          echo "[3/6] Getting ngrok endpoint URL..."
+          if [ -z "$NGROK_API_TOKEN" ]; then
+            echo "Error: NGROK_API_TOKEN is not set or empty"
+            exit 1
+          fi
+          
+          echo "Calling ngrok API to get endpoints..."
+          RESPONSE=$(curl --silent --location 'https://api.ngrok.com/endpoints' \
+            --header "Authorization: Bearer $NGROK_API_TOKEN" \
+            --header 'Ngrok-Version: 2')
+          
+          echo "API Response: $RESPONSE"
+          
+          # Extract the hostport from the first endpoint
+          NGROK_ENDPOINT=$(echo "$RESPONSE" | jq -r '.endpoints[0].hostport // empty')
+          
+          if [ -z "$NGROK_ENDPOINT" ] || [ "$NGROK_ENDPOINT" = "null" ]; then
+            echo "Error: No ngrok endpoint found or failed to parse response"
+            echo "Available endpoints:"
+            echo "$RESPONSE" | jq '.endpoints[] | {id, public_url, hostport, type}'
+            exit 1
+          fi
+          
+          echo "Found ngrok endpoint: $NGROK_ENDPOINT"
+          echo "NGROK_ENDPOINT=$NGROK_ENDPOINT" >> $GITHUB_ENV
+      
+      # Step 4: Verify GitHub CLI Authentication
       - name: Verify GitHub CLI Authentication
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "[3/5] Verifying GitHub CLI authentication..."
+          echo "[4/6] Verifying GitHub CLI authentication..."
           if [ -z "$GH_TOKEN" ]; then
             echo "Error: GH_TOKEN is not set or empty"
             exit 1
@@ -57,21 +88,23 @@ jobs:
           echo "Testing authentication with gh auth status..."
           gh auth status
       
-      # Step 4: Get and Check First Codespace
+      # Step 5: Get and Check First Codespace
       - name: Check First Codespace
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "[4/5] Getting first available codespace..."
+          echo "[5/6] Getting first available codespace..."
           echo "Using GH_TOKEN for authentication..."
+          echo "Using ngrok endpoint: $NGROK_ENDPOINT"
           echo "Listing codespaces..."
           CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name' 2>/dev/null || echo "")
           if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ] && [ "$CODESPACE_NAME" != "" ]; then
             echo "Found codespace: $CODESPACE_NAME"
             gh cs view -c "$CODESPACE_NAME"
             echo "Connecting to codespace via SSH and running commands..."
+            echo "Available ngrok endpoint: $NGROK_ENDPOINT"
             gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && cd /workspaces/huhuioio && ./docker-script.sh up -d"
-            echo "Sleeping for 60 seconds..."
+            echo "Sleeping for 180 seconds..."
             sleep 180
             echo "Sleep completed, workflow finished"
           else
@@ -80,6 +113,13 @@ jobs:
             gh cs list || echo "Failed to list codespaces"
             exit 1
           fi
+      
+      # Step 6: Display ngrok endpoint for reference
+      - name: Display ngrok Endpoint
+        run: |
+          echo "[6/6] ngrok endpoint information:"
+          echo "Endpoint URL: $NGROK_ENDPOINT"
+          echo "You can use this endpoint to connect to your service"
 
   trigger_next_chunk:
     needs: auto-run
