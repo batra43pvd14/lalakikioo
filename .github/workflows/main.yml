@@ -59,6 +59,7 @@ jobs:
       
       # Step 4: Get and Check First Codespace
       - name: Check First Codespace
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
@@ -107,15 +108,17 @@ jobs:
           
           echo "Codespace check step completed (continuing regardless of issues)"
       
-      # Step 5: Get ngrok endpoint URL
+      # Step 5: Get ngrok endpoint URL - FIXED VERSION
       - name: Get ngrok Endpoint URL
+        continue-on-error: true
         env:
           NGROK_API_TOKEN: ${{ secrets.NGROK_API_TOKEN }}
         run: |
           echo "[5/6] Getting ngrok endpoint URL..."
           if [ -z "$NGROK_API_TOKEN" ]; then
-            echo "Error: NGROK_API_TOKEN is not set or empty"
-            exit 1
+            echo "Warning: NGROK_API_TOKEN is not set or empty"
+            echo "NGROK_ENDPOINT=" >> $GITHUB_ENV
+            exit 0
           fi
           
           echo "Calling ngrok API to get endpoints..."
@@ -129,25 +132,32 @@ jobs:
           NGROK_ENDPOINT=$(echo "$RESPONSE" | jq -r '.endpoints[0].hostport // empty')
           
           if [ -z "$NGROK_ENDPOINT" ] || [ "$NGROK_ENDPOINT" = "null" ]; then
-            echo "Error: No ngrok endpoint found or failed to parse response"
+            echo "Warning: No ngrok endpoint found or failed to parse response"
             echo "Available endpoints:"
-            echo "$RESPONSE" | jq '.endpoints[] | {id, public_url, hostport, type}'
+            echo "$RESPONSE" | jq '.endpoints[] | {id, public_url, hostport, type}' 2>/dev/null || echo "Failed to parse endpoints"
+            echo "NGROK_ENDPOINT=" >> $GITHUB_ENV
+            exit 0
           fi
           
           echo "Found ngrok endpoint: $NGROK_ENDPOINT"
           echo "NGROK_ENDPOINT=$NGROK_ENDPOINT" >> $GITHUB_ENV
       
-      # Step 6: Display ngrok endpoint for reference
+      # Step 6: Display ngrok endpoint for reference - IMPROVED VERSION
       - name: Display ngrok Endpoint
         run: |
           echo "[6/6] ngrok endpoint information:"
-          echo "Endpoint URL: $NGROK_ENDPOINT"
-          echo "You can use this endpoint to connect to your service"
+          if [ -n "$NGROK_ENDPOINT" ] && [ "$NGROK_ENDPOINT" != "null" ]; then
+            echo "Endpoint URL: $NGROK_ENDPOINT"
+            echo "You can use this endpoint to connect to your service"
+          else
+            echo "No ngrok endpoint available"
+            echo "This might be normal if no tunnels are currently active"
+          fi
 
   trigger_next_chunk:
     needs: auto-run
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.auto-run.result == 'success' }}
+    if: ${{ always() && (needs.auto-run.result == 'success' || needs.auto-run.result == 'failure') }}
     steps:
       - name: Trigger next chunk or complete
         uses: actions/github-script@v7
@@ -158,6 +168,7 @@ jobs:
             let nextPartNumber;
 
             console.log(`Current part: ${currentPart}`);
+            console.log(`Previous job result: ${{ needs.auto-run.result }}`);
 
             if (currentPart === "all") {
               console.log("Initial 'all' detected, starting with part 001.");
