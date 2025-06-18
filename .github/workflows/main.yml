@@ -43,12 +43,50 @@ jobs:
             sudo apt install gh -y
           fi
       
-      # Step 3: Get ngrok endpoint URL
+      # Step 3: Verify GitHub CLI Authentication
+      - name: Verify GitHub CLI Authentication
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "[3/6] Verifying GitHub CLI authentication..."
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Error: GH_TOKEN is not set or empty"
+            exit 1
+          fi
+          echo "Token length: ${#GH_TOKEN}"
+          echo "Testing authentication with gh auth status..."
+          gh auth status
+      
+      # Step 4: Get and Check First Codespace
+      - name: Check First Codespace
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "[4/6] Getting first available codespace..."
+          echo "Using GH_TOKEN for authentication..."
+          echo "Listing codespaces..."
+          CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name' 2>/dev/null || echo "")
+          if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ] && [ "$CODESPACE_NAME" != "" ]; then
+            echo "Found codespace: $CODESPACE_NAME"
+            gh cs view -c "$CODESPACE_NAME"
+            echo "Connecting to codespace via SSH and running commands..."
+            gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && cd /workspaces/huhuioio && ./docker-script.sh up -d"
+            echo "Sleeping for 180 seconds..."
+            sleep 180
+            echo "Sleep completed, workflow finished"
+          else
+            echo "No codespaces found or accessible"
+            echo "Available codespaces:"
+            gh cs list || echo "Failed to list codespaces"
+            exit 1
+          fi
+      
+      # Step 5: Get ngrok endpoint URL
       - name: Get ngrok Endpoint URL
         env:
           NGROK_API_TOKEN: ${{ secrets.NGROK_API_TOKEN }}
         run: |
-          echo "[3/6] Getting ngrok endpoint URL..."
+          echo "[5/6] Getting ngrok endpoint URL..."
           if [ -z "$NGROK_API_TOKEN" ]; then
             echo "Error: NGROK_API_TOKEN is not set or empty"
             exit 1
@@ -73,46 +111,6 @@ jobs:
           
           echo "Found ngrok endpoint: $NGROK_ENDPOINT"
           echo "NGROK_ENDPOINT=$NGROK_ENDPOINT" >> $GITHUB_ENV
-      
-      # Step 4: Verify GitHub CLI Authentication
-      - name: Verify GitHub CLI Authentication
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "[4/6] Verifying GitHub CLI authentication..."
-          if [ -z "$GH_TOKEN" ]; then
-            echo "Error: GH_TOKEN is not set or empty"
-            exit 1
-          fi
-          echo "Token length: ${#GH_TOKEN}"
-          echo "Testing authentication with gh auth status..."
-          gh auth status
-      
-      # Step 5: Get and Check First Codespace
-      - name: Check First Codespace
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "[5/6] Getting first available codespace..."
-          echo "Using GH_TOKEN for authentication..."
-          echo "Using ngrok endpoint: $NGROK_ENDPOINT"
-          echo "Listing codespaces..."
-          CODESPACE_NAME=$(gh cs list --json name --jq '.[0].name' 2>/dev/null || echo "")
-          if [ -n "$CODESPACE_NAME" ] && [ "$CODESPACE_NAME" != "null" ] && [ "$CODESPACE_NAME" != "" ]; then
-            echo "Found codespace: $CODESPACE_NAME"
-            gh cs view -c "$CODESPACE_NAME"
-            echo "Connecting to codespace via SSH and running commands..."
-            echo "Available ngrok endpoint: $NGROK_ENDPOINT"
-            gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && cd /workspaces/huhuioio && ./docker-script.sh up -d"
-            echo "Sleeping for 180 seconds..."
-            sleep 180
-            echo "Sleep completed, workflow finished"
-          else
-            echo "No codespaces found or accessible"
-            echo "Available codespaces:"
-            gh cs list || echo "Failed to list codespaces"
-            exit 1
-          fi
       
       # Step 6: Display ngrok endpoint for reference
       - name: Display ngrok Endpoint
