@@ -89,7 +89,7 @@ jobs:
               fi
               
               echo "Attempting to connect to codespace via SSH and run commands..."
-              if gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && cd /workspaces/huhuioio && ./docker-script.sh restart" 2>/dev/null; then
+              if gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && cd /workspaces/huhuioio && ./docker-script.sh up" 2>/dev/null; then
                 echo "Successfully executed commands in codespace"
               else
                 echo "Warning: Failed to execute commands in codespace, but continuing..."
