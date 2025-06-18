@@ -70,7 +70,7 @@ jobs:
             echo "Found codespace: $CODESPACE_NAME"
             gh cs view -c "$CODESPACE_NAME"
             echo "Connecting to codespace via SSH and running commands..."
-            gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && ./docker-script.sh up -d"
+            gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && cd /workspaces/huhuioio && ./docker-script.sh up -d"
             echo "Sleeping for 60 seconds..."
             sleep 180
             echo "Sleep completed, workflow finished"
