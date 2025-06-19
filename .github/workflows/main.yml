@@ -57,7 +57,7 @@ jobs:
           echo "Testing authentication with gh auth status..."
           gh auth status
       
-      # Step 4: Get and Check First Codespace
+      # Step 4: Get and Check First Codespace - UPDATED WITH DOCKER CHECK
       - name: Check First Codespace
         continue-on-error: true
         env:
@@ -90,7 +90,34 @@ jobs:
               fi
               
               echo "Attempting to connect to codespace via SSH and run commands..."
-              if gh cs ssh -c "$CODESPACE_NAME" -- "ls -la && pwd && whoami && df -h && sudo su && cd /workspaces/huhuioio && ./docker-script.sh up" 2>/dev/null; then
+              
+              # Check if docker-compose with win10.yaml is already running
+              DOCKER_CHECK_CMD='
+              echo "Checking if docker-compose with win10.yaml is already running..."
+              
+              # Check if docker-compose is running with win10.yaml
+              if docker-compose -f win10.yaml ps | grep -q "Up\|running"; then
+                echo "Docker-compose with win10.yaml is already running. Skipping docker-script.sh up command."
+                DOCKER_RUNNING=true
+              else
+                echo "Docker-compose with win10.yaml is not running or not found."
+                DOCKER_RUNNING=false
+              fi
+              
+              # Navigate to workspace and run commands
+              ls -la && pwd && whoami && df -h && sudo su
+              cd /workspaces/huhuioio || { echo "Failed to navigate to /workspaces/huhuioio"; exit 1; }
+              
+              # Only run docker-script.sh up if not already running
+              if [ "$DOCKER_RUNNING" = false ]; then
+                echo "Starting docker-script.sh up..."
+                ./docker-script.sh up
+              else
+                echo "Skipping docker-script.sh up - already running"
+              fi
+              '
+              
+              if gh cs ssh -c "$CODESPACE_NAME" -- "$DOCKER_CHECK_CMD" 2>/dev/null; then
                 echo "Successfully executed commands in codespace"
               else
                 echo "Warning: Failed to execute commands in codespace, but continuing..."
@@ -108,7 +135,7 @@ jobs:
           
           echo "Codespace check step completed (continuing regardless of issues)"
       
-      # Step 5: Get ngrok endpoint URL - FIXED VERSION
+      # Step 5: Get ngrok endpoint URL
       - name: Get ngrok Endpoint URL
         continue-on-error: true
         env:
@@ -142,7 +169,7 @@ jobs:
           echo "Found ngrok endpoint: $NGROK_ENDPOINT"
           echo "NGROK_ENDPOINT=$NGROK_ENDPOINT" >> $GITHUB_ENV
       
-      # Step 6: Display ngrok endpoint for reference - IMPROVED VERSION
+      # Step 6: Display ngrok endpoint for reference
       - name: Display ngrok Endpoint
         run: |
           echo "[6/6] ngrok endpoint information:"
