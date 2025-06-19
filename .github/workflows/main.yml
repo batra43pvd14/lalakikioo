@@ -57,7 +57,7 @@ jobs:
           echo "Testing authentication with gh auth status..."
           gh auth status
       
-      # Step 4: Get and Check First Codespace - UPDATED WITH DOCKER CHECK
+      # Step 4: Get and Check First Codespace - UPDATED WITH DOCKER IMAGES CHECK
       - name: Check First Codespace
         continue-on-error: true
         env:
@@ -91,29 +91,57 @@ jobs:
               
               echo "Attempting to connect to codespace via SSH and run commands..."
               
-              # Check if docker-compose with win10.yaml is already running
+              # Check if any Docker images are running
               DOCKER_CHECK_CMD='
-              echo "Checking if docker-compose with win10.yaml is already running..."
+              echo "Checking if any Docker containers are running..."
               
-              # Check if docker-compose is running with win10.yaml
-              if docker-compose -f win10.yaml ps | grep -q "Up\|running"; then
-                echo "Docker-compose with win10.yaml is already running. Skipping docker-script.sh up command."
-                DOCKER_RUNNING=true
-              else
-                echo "Docker-compose with win10.yaml is not running or not found."
+              # Check if Docker daemon is running
+              if ! docker info >/dev/null 2>&1; then
+                echo "Docker daemon is not running or not accessible"
                 DOCKER_RUNNING=false
+              else
+                echo "Docker daemon is accessible"
+                
+                # List all running containers
+                RUNNING_CONTAINERS=$(docker ps -q)
+                
+                if [ -z "$RUNNING_CONTAINERS" ]; then
+                  echo "No Docker containers are currently running"
+                  DOCKER_RUNNING=false
+                else
+                  echo "Found running Docker containers:"
+                  docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+                  DOCKER_RUNNING=true
+                fi
               fi
               
               # Navigate to workspace and run commands
-              ls -la && pwd && whoami && df -h && sudo su
-              cd /workspaces/huhuioio || { echo "Failed to navigate to /workspaces/huhuioio"; exit 1; }
+              echo "Current directory: $(pwd)"
+              echo "User: $(whoami)"
+              echo "Disk usage:"
+              df -h
               
-              # Only run docker-script.sh up if not already running
+              # Switch to root if needed
+              sudo su -c "echo Root access confirmed"
+              
+              # Navigate to the target directory
+              cd /workspaces/huhuioio || { echo "Failed to navigate to /workspaces/huhuioio"; exit 1; }
+              echo "Successfully navigated to: $(pwd)"
+              
+              # Only run docker-script.sh up if no containers are running
               if [ "$DOCKER_RUNNING" = false ]; then
-                echo "Starting docker-script.sh up..."
-                ./docker-script.sh up
+                echo "No Docker containers running - Starting docker-script.sh up..."
+                if [ -f "./docker-script.sh" ]; then
+                  chmod +x ./docker-script.sh
+                  ./docker-script.sh up
+                else
+                  echo "Warning: docker-script.sh not found in current directory"
+                  ls -la
+                fi
               else
-                echo "Skipping docker-script.sh up - already running"
+                echo "Docker containers are already running - Skipping docker-script.sh up"
+                echo "Current running containers:"
+                docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
               fi
               '
               
